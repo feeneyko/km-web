@@ -128,10 +128,13 @@ function updateGamutContainers(fractionValue, dotSizeXYValue, dotSizeTValue) {
             <label for="dotsize-xychromaticity-input">Dot Size for XY Chromaticity Diagram:</label>
             <input type="number" id="dotsize-xychromaticity-input" value="${dotSizeXYValue}">
             <br>
-            <text>Hover/Click the points on XY Chromaticity Diagram to show coordinates. Toggle color need to reclick the Calculate Button.</text>
+            <text>-</text>
+            <br>
+            <text>Hover/Click the points on XY Chromaticity Diagram to show coordinates.</text>
             <br>
             <label for="toggle-coordinates">White Coordinates:</label>
             <input type="checkbox" id="toggle-coordinates">
+            <text>Toggle coordinate color need to reclick the Calculate Button.</text>
         `;
     } else {
         dotsizeXYContainer.innerHTML = '';
