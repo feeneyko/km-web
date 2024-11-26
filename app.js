@@ -38,23 +38,55 @@ function displayPigments() {
         colorBox.style.position = 'relative';
         colorBox.dataset.pigment = pigment;
 
-        // Calculate and display the pigment color initially
-        const rgb = xyz_to_rgb(calculateColor(pigment));
+        // Calculate the pigment color and related values
+        const xyz = calculateColor(pigment);
+        const rgb = xyz_to_rgb(xyz);
+
+        // Apply the background color
         colorBox.style.backgroundColor = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
 
+        // Create a label for the pigment name
         const label = document.createElement('div');
         label.textContent = pigment;
         label.style.position = 'absolute';
-        label.style.bottom = '0';
+        label.style.bottom = '40px'; // Adjusted to make room for XYZ and RGB values
         label.style.width = '100%';
         label.style.textAlign = 'center';
         label.style.backgroundColor = 'rgba(255, 255, 255, 0.7)';
 
+        // Create a label for the XYZ values
+        const xyzLabel = document.createElement('div');
+        xyzLabel.textContent = `XYZ: (${xyz[0].toFixed(2)}, ${xyz[1].toFixed(2)}, ${xyz[2].toFixed(2)})`;
+        xyzLabel.style.position = 'absolute';
+        xyzLabel.style.bottom = '20px';
+        xyzLabel.style.width = '100%';
+        xyzLabel.style.textAlign = 'center';
+        xyzLabel.style.backgroundColor = 'rgba(255, 255, 255, 0.7)';
+        xyzLabel.style.fontSize = '10px';
+
+        // Create a label for the RGB values
+        const rgbLabel = document.createElement('div');
+        rgbLabel.textContent = `RGB: (${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+        rgbLabel.style.position = 'absolute';
+        rgbLabel.style.bottom = '0';
+        rgbLabel.style.width = '100%';
+        rgbLabel.style.textAlign = 'center';
+        rgbLabel.style.backgroundColor = 'rgba(255, 255, 255, 0.7)';
+        rgbLabel.style.fontSize = '10px';
+
+        // Append labels to the color box
         colorBox.appendChild(label);
+        colorBox.appendChild(xyzLabel);
+        colorBox.appendChild(rgbLabel);
+
+        // Add click event for pigment selection
         colorBox.addEventListener('click', () => togglePigmentSelection(colorBox));
+
+        // Append the color box to the container
         container.appendChild(colorBox);
     });
 }
+
 
 // Toggle selection state for a pigment and manage individual ratio input fields
 function togglePigmentSelection(element) {
@@ -106,7 +138,7 @@ function updateGamutContainers(fractionValue, dotSizeXYValue, dotSizeTValue) {
 
     if (fractionValue !== null) {
         fractionContainer.innerHTML = `
-            <label for="fraction-input">Enter Fraction/Step:</label>
+            <label for="fraction-input">Fraction/Step:</label>
             <input type="number" id="fraction-input" value="${fractionValue}">
         `;
     } else {
@@ -115,8 +147,10 @@ function updateGamutContainers(fractionValue, dotSizeXYValue, dotSizeTValue) {
 
     if (dotSizeTValue !== null) {
         dotsizeTContainer.innerHTML = `
-            <label for="dotsize-t-input">Dot Size for Gamut Triangle:</label>
+            <label for="dotsize-t-input">- <br> Dot Size for Ternary Plot:</label>
             <input type="number" id="dotsize-t-input" value="${dotSizeTValue}">
+            <br>
+            <text>Hover/Click the points on Ternary Plot to show ratios.</text>
         `;
     } else {
         dotsizeTContainer.innerHTML = '';
@@ -134,7 +168,7 @@ function updateGamutContainers(fractionValue, dotSizeXYValue, dotSizeTValue) {
             <br>
             <label for="toggle-coordinates">White Coordinates:</label>
             <input type="checkbox" id="toggle-coordinates">
-            <text>Toggle coordinate color need to reclick the Calculate Button.</text>
+            <text>(Toggle coordinate text color need to reclick the Calculate Button.)</text>
         `;
     } else {
         dotsizeXYContainer.innerHTML = '';
@@ -569,8 +603,6 @@ function displayInXYChromacity(ctx, offscreenCanvas, colors, xMin, xMax, yMin, y
     init();
 }
 
-
-
 // Function to display the gamut of colors for three pigments using a ternary plot
 function displayGamut(bundle, selectedPigments, dotsizeT, dotsizeXY, whiteCoordinates) {
     const gamutContainer = document.getElementById('gamut-container');
@@ -598,7 +630,21 @@ function displayGamut(bundle, selectedPigments, dotsizeT, dotsizeXY, whiteCoordi
             gamutContainer.appendChild(containerDiv);
         });
         // Display the XY chromaticity diagram
-        gamutContainer.appendChild(generateGamutXYChromacity(bundle.map(obj => obj.xyz), dotsizeXY, whiteCoordinates));
+        // Create a container for the XY chromaticity diagram and its label
+        const xyContainer = document.createElement('div');
+        xyContainer.style.display = 'inline-block'; // or 'block' if you prefer
+        xyContainer.style.textAlign = 'center';
+        xyContainer.style.margin = '10px';
+        // Display the XY chromaticity diagram and append it to the xyContainer
+        const xyCanvas = generateGamutXYChromacity(bundle.map(obj => obj.xyz), dotsizeXY, whiteCoordinates);
+        xyContainer.appendChild(xyCanvas);
+        // Add a label for the XY chromaticity diagram
+        const xyLabel = document.createElement('div');
+        xyLabel.textContent = 'CIE 1931 XY Chromaticity Diagram';
+        xyLabel.style.marginTop = '10px';
+        xyContainer.appendChild(xyLabel);
+        // Append the xy container to the gamut container
+        gamutContainer.appendChild(xyContainer);
 
     } else if (selectedPigments.length == 3) {
         // Create a canvas for the ternary plot
@@ -608,9 +654,13 @@ function displayGamut(bundle, selectedPigments, dotsizeT, dotsizeXY, whiteCoordi
         canvas.width = canvasWidth;
         canvas.height = canvasHeight;
         const ctx = canvas.getContext('2d');
+
         // Draw the ternary plot background (triangle)
         drawTernaryBackground(ctx, canvasWidth, canvasHeight, selectedPigments);
-        // Plot each color point on the ternary plot
+
+        const points = [];
+
+        // Build the points array
         bundle.forEach(obj => {
             const [r, g, b] = xyz_to_rgb(obj.xyz);
             const ratios = obj.ratios;
@@ -618,19 +668,150 @@ function displayGamut(bundle, selectedPigments, dotsizeT, dotsizeXY, whiteCoordi
             // Convert ternary ratios to Cartesian coordinates
             const [x, y] = ternaryToCartesian(ratios, canvasWidth, canvasHeight);
 
-            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-            ctx.beginPath();
-            // ctx.arc(x, y, 2, 0, 2 * Math.PI); // Use y directly
-            ctx.arc(x, canvasHeight - y, dotsizeT, 0, 2 * Math.PI); // Invert y-axis
-            ctx.fill();
+            points.push({
+                x: x,
+                y: canvasHeight - y, // because we inverted y-axis in plotting
+                ratios: ratios,
+                r: r,
+                g: g,
+                b: b,
+            });
         });
-        gamutContainer.appendChild(canvas);
-        // Display the XY chromaticity diagram
-        gamutContainer.appendChild(generateGamutXYChromacity(bundle.map(obj => obj.xyz), dotsizeXY, whiteCoordinates));
-        
+
+        // Function to draw the canvas
+        function drawCanvas(hoveredPoint, clickedPoint) {
+            // Clear the canvas
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+            // Draw the ternary plot background (triangle)
+            drawTernaryBackground(ctx, canvasWidth, canvasHeight, selectedPigments);
+
+            // Draw each color point
+            points.forEach(point => {
+                ctx.fillStyle = `rgb(${point.r}, ${point.g}, ${point.b})`;
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, dotsizeT, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+
+            // Draw proportions for hovered and clicked points
+            [hoveredPoint, clickedPoint].forEach((point) => {
+                if (point) {
+                    ctx.fillStyle = 'black';
+                    ctx.font = '12px Arial';
+                    const ratiosText = point.ratios.map(r => r.toFixed(2)).join(', ');
+                    ctx.fillText(
+                        `(${ratiosText})`,
+                        point.x + 5,
+                        point.y - 5
+                    );
+                }
+            });
+        }
+
+        // Initialize
+        drawCanvas(null, null);
+
+        // Add event listeners
+        canvas.addEventListener('mousemove', handleMouseMove);
+        canvas.addEventListener('click', handleClick);
+
+        function handleMouseMove(event) {
+            const mousePos = getMousePos(canvas, event);
+            let hoveredPoint = null;
+
+            for (let i = 0; i < points.length; i++) {
+                const point = points[i];
+                const dx = mousePos.x - point.x;
+                const dy = mousePos.y - point.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance <= dotsizeT * 2) {
+                    hoveredPoint = point;
+                    break;
+                }
+            }
+
+            // Redraw the canvas with the hovered point
+            drawCanvas(hoveredPoint, clickedPoint);
+        }
+
+        let clickedPoint = null;
+
+        function handleClick(event) {
+            const mousePos = getMousePos(canvas, event);
+            clickedPoint = null;
+
+            for (let i = 0; i < points.length; i++) {
+                const point = points[i];
+                const dx = mousePos.x - point.x;
+                const dy = mousePos.y - point.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance <= dotsizeT * 2) {
+                    clickedPoint = point;
+                    break;
+                }
+            }
+
+            // Redraw the canvas with the clicked point
+            drawCanvas(null, clickedPoint);
+        }
+
+        function getMousePos(canvas, evt) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: (evt.clientX - rect.left) * (canvas.width / rect.width),
+                y: (evt.clientY - rect.top) * (canvas.height / rect.height),
+            };
+        }
+
+        // Create a container for the ternary plot and its label
+        const ternaryContainer = document.createElement('div');
+        ternaryContainer.style.display = 'inline-block'; // or 'block' if you prefer
+        ternaryContainer.style.textAlign = 'center';
+        ternaryContainer.style.margin = '10px';
+        // Append the ternary plot canvas to the container
+        ternaryContainer.appendChild(canvas);
+        // Add a label for the ternary plot
+        const ternaryLabel = document.createElement('div');
+        ternaryLabel.textContent = 'Ternary Plot (by Ratios)';
+        ternaryLabel.style.marginTop = '10px';
+        ternaryContainer.appendChild(ternaryLabel);
+        // Append the ternary container to the gamut container
+        gamutContainer.appendChild(ternaryContainer);
+
+        // Create a container for the XY chromaticity diagram and its label
+        const xyContainer = document.createElement('div');
+        xyContainer.style.display = 'inline-block'; // or 'block' if you prefer
+        xyContainer.style.textAlign = 'center';
+        xyContainer.style.margin = '10px';
+        // Display the XY chromaticity diagram and append it to the xyContainer
+        const xyCanvas = generateGamutXYChromacity(bundle.map(obj => obj.xyz), dotsizeXY, whiteCoordinates);
+        xyContainer.appendChild(xyCanvas);
+        // Add a label for the XY chromaticity diagram
+        const xyLabel = document.createElement('div');
+        xyLabel.textContent = 'CIE 1931 XY Chromaticity Diagram';
+        xyLabel.style.marginTop = '10px';
+        xyContainer.appendChild(xyLabel);
+        // Append the xy container to the gamut container
+        gamutContainer.appendChild(xyContainer);
+
     } else if (selectedPigments.length >= 4) {
-        // Display the XY chromaticity diagram
-        gamutContainer.appendChild(generateGamutXYChromacity(bundle.map(obj => obj.xyz), dotsizeXY, whiteCoordinates));
+        const xyContainer = document.createElement('div');
+        xyContainer.style.display = 'inline-block'; // or 'block' if you prefer
+        xyContainer.style.textAlign = 'center';
+        xyContainer.style.margin = '10px';
+        // Display the XY chromaticity diagram and append it to the xyContainer
+        const xyCanvas = generateGamutXYChromacity(bundle.map(obj => obj.xyz), dotsizeXY, whiteCoordinates);
+        xyContainer.appendChild(xyCanvas);
+        // Add a label for the XY chromaticity diagram
+        const xyLabel = document.createElement('div');
+        xyLabel.textContent = 'CIE 1931 XY Chromaticity Diagram';
+        xyLabel.style.marginTop = '10px';
+        xyContainer.appendChild(xyLabel);
+        // Append the xy container to the gamut container
+        gamutContainer.appendChild(xyContainer);
     }
 }
 
@@ -724,13 +905,13 @@ function displayMixedColor(rgb) {
     const colorDisplayRGB = document.getElementById('RGB-mixed-color-display');
     colorDisplayRGB.style.backgroundColor = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
     const colorInfoRGB = document.getElementById('RGB-mixed-color-info');
-    colorInfoRGB.textContent = `Mixed sRGB values: ${rgb[0]}, ${rgb[1]}, ${rgb[2]}`;
+    colorInfoRGB.innerHTML = `Mixed sRGB values:<br>${rgb[0]}, ${rgb[1]}, ${rgb[2]}`;
 }
 function displayMixedColorKM(rgb) {
     const colorDisplayKM = document.getElementById('KM-mixed-color-display');
     colorDisplayKM.style.backgroundColor = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
     const colorInfoKM = document.getElementById('KM-mixed-color-info');
-    colorInfoKM.textContent = `Mixed sRGB values: ${rgb[0]}, ${rgb[1]}, ${rgb[2]}`;
+    colorInfoKM.innerHTML = `Mixed sRGB values:<br>${rgb[0]}, ${rgb[1]}, ${rgb[2]}`;
 }
 
 // Convert XYZ values to sRGB

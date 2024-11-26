@@ -11,6 +11,15 @@
             margin-top: 20px;
             border: 1px solid #333;
         }
+        #gamut-container canvas {
+            max-width: 100%;
+            height: auto;
+        }
+
+        #gamut-container div {
+            max-width: 100%;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -48,7 +57,7 @@
         <div id="dotsize-xychromaticity-input-div" style="margin-top: 5px;"></div>
         <div id="dotsize-triangle-input-div" style="margin-top: 5px;"></div>
         <button onclick="calculateGamut()" style="margin-top: 5px;">Calculate Gamut</button>
-        <div id="gamut-container" style="margin-top: 20px;"></div>
+        <div id="gamut-container" style="margin-top: 20px; display: flex; align-items: center;"></div>
     </div>
 
     <script src="app.js"></script>
