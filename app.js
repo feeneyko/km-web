@@ -4,28 +4,47 @@ const pigments = [
     'Pyrrole Red', 'Ultramarine Blue', 'Dioxazine Purple', 'Pyrrole Orange'
 ];
 
+// Pigments and other illuminant data, 10 nm intervals
 let pigmentData = [];
-let illuminantData = [];
+// To draw the xy chromaticity diagram boundary, 1 nm intervals
 let detailedCMFD65 = [];
 
 // Load JSON data file
 async function loadData() {
-    pigmentData = await fetch('prepared_data.json').then(res => res.json());
+    pigmentData = await fetch('prepared_data_3i.json').then(res => res.json());
     detailedCMFD65 = await fetch('CMF_D65.json').then(res => res.json());
 
     // Extract color matching functions and illuminant data from the pigmentData
     x_bar = pigmentData.map(row => row.x_bar);
     y_bar = pigmentData.map(row => row.y_bar);
     z_bar = pigmentData.map(row => row.z_bar);
-    I = pigmentData.map(row => row.power);
+
     delta_lambda = pigmentData[1].wavelength - pigmentData[0].wavelength;
-    
+
+    changeIlluminant();
+}
+
+async function changeIlluminant() {
+    const illuminant = document.getElementById('illuminant-select').value;
+    let illuminantData;
+
+    if (illuminant === 'D65') {
+        illuminantData = pigmentData.map(row => row.d65_power);
+    } else if (illuminant === 'D50') {
+        illuminantData = pigmentData.map(row => row.d50_power);
+    } else if (illuminant === 'A') {
+        illuminantData = pigmentData.map(row => row.a_power);
+    }
+
+    I = illuminantData;
+
     displayPigments();
 }
 
 // Display each pigment as a selectable color swatch
 function displayPigments() {
     const container = document.getElementById('pigment-container');
+    container.innerHTML = ''; // Clear previous content
     pigments.forEach(pigment => {
         const colorBox = document.createElement('div');
         colorBox.classList.add('pigment-box');
@@ -53,6 +72,10 @@ function displayPigments() {
         label.style.width = '100%';
         label.style.textAlign = 'center';
         label.style.backgroundColor = 'rgba(255, 255, 255, 0.7)';
+
+        //change font
+        label.style.fontFamily = 'Arial, sans-serif';
+        label.style.fontSize = '14px';
 
         // Create a label for the XYZ values
         const xyzLabel = document.createElement('div');
@@ -165,10 +188,10 @@ function updateGamutContainers(fractionValue, dotSizeXYValue, dotSizeTValue) {
             <text>-</text>
             <br>
             <text>Hover/Click the points on XY Chromaticity Diagram to show coordinates.</text>
-            <br>
-            <label for="toggle-coordinates">White Coordinates:</label>
-            <input type="checkbox" id="toggle-coordinates">
-            <text>(Toggle coordinate text color need to reclick the Calculate Button.)</text>
+            <!-- <br> -->
+            <!-- <label for="toggle-coordinates">White Coordinates:</label> -->
+            <!-- <input type="checkbox" id="toggle-coordinates"> -->
+            <!-- <text>(Toggle coordinate text color need to reclick the Calculate Button.)</text> -->
         `;
     } else {
         dotsizeXYContainer.innerHTML = '';
@@ -221,7 +244,9 @@ function calculateColor(pigments, ratios = [1]) {
 
     // Calculate R_inf based on the weighted K and S values
     const ks_ratio = weightedK.map((k, i) => k / weightedS[i]);
-    const R_inf = ks_ratio.map(ks => 1 + ks - Math.sqrt(ks * (ks + 2))).map(r => Math.min(Math.max(r, 0), 1));
+    const R_inf = ks_ratio
+    .map(ks => 1 + ks - Math.sqrt(ks * (ks + 2)))
+    .map(r => clip(r, 0, 1));
 
     // Calculate XYZ tristimulus values
     const X_num = R_inf.reduce((acc, R, i) => acc + R * I[i] * x_bar[i], 0) * delta_lambda;
@@ -249,10 +274,6 @@ function gammaCorrect(c) {
     }
 }
 
-function inverseGammaCorrect(c) {
-    return Math.pow(c, 2.2);
-}
-
 // Mix colors based on selected pigments and given ratios
 function mixColors() {
     const selectedElements = document.querySelectorAll('.pigment-box.selected');
@@ -266,10 +287,10 @@ function mixColors() {
     const ratioFields = document.querySelectorAll('.pigment-ratio');
     const ratios = Array.from(ratioFields).map(input => Number(input.value));
 
+    // RGB Light Mixing
+    // should be no different from the XYZ mixing mathematically
     let mixedXYZ = [0, 0, 0];
     let totalRatio = ratios.reduce((sum, r) => sum + r, 0);
-
-    // RGB Light Mixing
     selectedPigments.forEach((pigment, index) => {
         const xyz = calculateColor(pigment);
         mixedXYZ[0] += xyz[0] * (ratios[index] / totalRatio);
@@ -278,7 +299,7 @@ function mixColors() {
     });
     mixedRGB = xyz_to_rgb(mixedXYZ);
     displayMixedColor(mixedRGB);
-    
+
     displayMixedColorKM(xyz_to_rgb(calculateColor(selectedPigments, ratios)));
 }
 
@@ -286,7 +307,7 @@ function calculateGamut() {
     const stepsInput = document.getElementById('fraction-input');
     const dotsizeTInput = document.getElementById('dotsize-t-input');
     const dotsizeXYInput = document.getElementById('dotsize-xychromaticity-input');
-    const toggleCoordinates = document.getElementById('toggle-coordinates');
+    // const toggleCoordinates = document.getElementById('toggle-coordinates');
 
     const selectedElements = document.querySelectorAll('.pigment-box.selected');
     const selectedPigments = Array.from(selectedElements).map(el => el.dataset.pigment);
@@ -299,7 +320,8 @@ function calculateGamut() {
     const steps = parseInt(stepsInput.value);
     const dotsizeT = dotsizeTInput ? parseInt(dotsizeTInput.value) : 0;
     const dotsizeXY = parseInt(dotsizeXYInput.value);
-    const whiteCoordinates = toggleCoordinates ? toggleCoordinates.checked : false;
+    // const whiteCoordinates = toggleCoordinates ? toggleCoordinates.checked : false;
+    whiteCoordinates = false;
 
     const ratioCombinations = generateRatioCombinations(selectedPigments.length, steps);
 
@@ -614,19 +636,25 @@ function displayGamut(bundle, selectedPigments, dotsizeT, dotsizeXY, whiteCoordi
             const colorDiv = document.createElement('div');
             colorDiv.style.width = '40px';
             colorDiv.style.height = '40px';
-            colorDiv.style.display = 'inline-block';
-            colorDiv.style.margin = '1px';
+            colorDiv.style.margin = '1px auto';
             const [r, g, b] = xyz_to_rgb(obj.xyz);
             colorDiv.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+    
             const ratioDiv = document.createElement('div');
             ratioDiv.style.fontSize = '16px';
             ratioDiv.style.textAlign = 'center';
             ratioDiv.innerHTML = obj.ratios.map(r => `<div>${r.toFixed(2)}</div>`).join('');
+    
             const containerDiv = document.createElement('div');
-            containerDiv.style.display = 'inline-block';
+            containerDiv.style.flex = '1 0 auto'; // Allow items to grow and shrink
+            containerDiv.style.boxSizing = 'border-box';
             containerDiv.style.margin = '5px';
+            containerDiv.style.display = 'flex';
+            containerDiv.style.flexDirection = 'column';
+            containerDiv.style.alignItems = 'center';
             containerDiv.appendChild(colorDiv);
             containerDiv.appendChild(ratioDiv);
+    
             gamutContainer.appendChild(containerDiv);
         });
         // Display the XY chromaticity diagram
@@ -939,6 +967,13 @@ function xyz_to_xy(XYZ) {
         const y = Y / sum;
         return [x, y];
     }
+}
+
+function clip(value, min, max) {
+    if (value < min || value > max) {
+        console.log(`Clipping value: ${value}`);
+    }
+    return Math.min(Math.max(value, min), max);
 }
 
 // Load all data on startup
