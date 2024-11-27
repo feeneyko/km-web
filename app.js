@@ -489,6 +489,7 @@ function getXYZFromWavelength(wl) {
     return [X, Y, Z];
 }
 
+// white coordinates is for the coordinate text color
 function displayInXYChromacity(ctx, offscreenCanvas, colors, xMin, xMax, yMin, yMax, dotsize, padding, whiteCoordinates) {
     const canvasWidth = ctx.canvas.width;
     const canvasHeight = ctx.canvas.height;
@@ -525,7 +526,6 @@ function displayInXYChromacity(ctx, offscreenCanvas, colors, xMin, xMax, yMin, y
             ctx.fill();
         }
 
-        // Draw coordinate labels on top of all points
         [hoveredPoint, clickedPoint].forEach((point) => {
             if (point) {
                 if (whiteCoordinates) {
@@ -657,23 +657,6 @@ function displayGamut(bundle, selectedPigments, dotsizeT, dotsizeXY, whiteCoordi
     
             gamutContainer.appendChild(containerDiv);
         });
-        // Display the XY chromaticity diagram
-        // Create a container for the XY chromaticity diagram and its label
-        const xyContainer = document.createElement('div');
-        xyContainer.style.display = 'inline-block'; // or 'block' if you prefer
-        xyContainer.style.textAlign = 'center';
-        xyContainer.style.margin = '10px';
-        // Display the XY chromaticity diagram and append it to the xyContainer
-        const xyCanvas = generateGamutXYChromacity(bundle.map(obj => obj.xyz), dotsizeXY, whiteCoordinates);
-        xyContainer.appendChild(xyCanvas);
-        // Add a label for the XY chromaticity diagram
-        const xyLabel = document.createElement('div');
-        xyLabel.textContent = 'CIE 1931 XY Chromaticity Diagram';
-        xyLabel.style.marginTop = '10px';
-        xyContainer.appendChild(xyLabel);
-        // Append the xy container to the gamut container
-        gamutContainer.appendChild(xyContainer);
-
     } else if (selectedPigments.length == 3) {
         // Create a canvas for the ternary plot
         const canvas = document.createElement('canvas');
@@ -808,39 +791,23 @@ function displayGamut(bundle, selectedPigments, dotsizeT, dotsizeXY, whiteCoordi
         ternaryContainer.appendChild(ternaryLabel);
         // Append the ternary container to the gamut container
         gamutContainer.appendChild(ternaryContainer);
+    } else if (selectedPigments.length >= 4) {}
 
-        // Create a container for the XY chromaticity diagram and its label
-        const xyContainer = document.createElement('div');
-        xyContainer.style.display = 'inline-block'; // or 'block' if you prefer
-        xyContainer.style.textAlign = 'center';
-        xyContainer.style.margin = '10px';
-        // Display the XY chromaticity diagram and append it to the xyContainer
-        const xyCanvas = generateGamutXYChromacity(bundle.map(obj => obj.xyz), dotsizeXY, whiteCoordinates);
-        xyContainer.appendChild(xyCanvas);
-        // Add a label for the XY chromaticity diagram
-        const xyLabel = document.createElement('div');
-        xyLabel.textContent = 'CIE 1931 XY Chromaticity Diagram';
-        xyLabel.style.marginTop = '10px';
-        xyContainer.appendChild(xyLabel);
-        // Append the xy container to the gamut container
-        gamutContainer.appendChild(xyContainer);
-
-    } else if (selectedPigments.length >= 4) {
-        const xyContainer = document.createElement('div');
-        xyContainer.style.display = 'inline-block'; // or 'block' if you prefer
-        xyContainer.style.textAlign = 'center';
-        xyContainer.style.margin = '10px';
-        // Display the XY chromaticity diagram and append it to the xyContainer
-        const xyCanvas = generateGamutXYChromacity(bundle.map(obj => obj.xyz), dotsizeXY, whiteCoordinates);
-        xyContainer.appendChild(xyCanvas);
-        // Add a label for the XY chromaticity diagram
-        const xyLabel = document.createElement('div');
-        xyLabel.textContent = 'CIE 1931 XY Chromaticity Diagram';
-        xyLabel.style.marginTop = '10px';
-        xyContainer.appendChild(xyLabel);
-        // Append the xy container to the gamut container
-        gamutContainer.appendChild(xyContainer);
-    }
+    // Display the XY chromaticity diagram
+    const xyContainer = document.createElement('div');
+    xyContainer.style.display = 'inline-block'; // or 'block' if you prefer
+    xyContainer.style.textAlign = 'center';
+    xyContainer.style.margin = '10px';
+    // Display the XY chromaticity diagram and append it to the xyContainer
+    const xyCanvas = generateGamutXYChromacity(bundle.map(obj => obj.xyz), dotsizeXY, whiteCoordinates);
+    xyContainer.appendChild(xyCanvas);
+    // Add a label for the XY chromaticity diagram
+    const xyLabel = document.createElement('div');
+    xyLabel.textContent = 'CIE 1931 XY Chromaticity Diagram';
+    xyLabel.style.marginTop = '10px';
+    xyContainer.appendChild(xyLabel);
+    // Append the xy container to the gamut container
+    gamutContainer.appendChild(xyContainer);
 }
 
 function generateGamutXYChromacity(xyzlist, dotsize, whiteCoordinates) {
