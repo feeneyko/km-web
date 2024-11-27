@@ -132,7 +132,7 @@
             If you use the color picker to sample colors directly from the webpage, it will capture the already inaccurately rendered color correctly. In other words, it generates the correct textual representation of the wrong graphic representation on the website (rgb(63, 68, 245) for cobalt blue). Then representing this correct textual representation in graphic format in the color picker display square introduces further distortion due to another round of sRGB-to-web display conversion.
         </p>
         <p>
-            The coordinates of the xy chromaticity diagram are designed to correctly represent the XYZ tristimulus values calculated from Kubelka-Munk result (i.e., reflectance). Whenever any clipping occurs during these calculation, a console log will warn and show the value before clipping.
+            The coordinates of the xy chromaticity diagram are designed to correctly represent the XYZ tristimulus values calculated from Kubelka-Munk result (i.e., reflectance). Whenever any clipping occurs during these calculation, a console log will warn and show the value before clipping. Other clippings (e.g., during XYZ to RGB) will not be not shown.
         </p>
     </div>
 
