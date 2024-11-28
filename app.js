@@ -192,11 +192,9 @@ function updateGamutContainers(fractionValue, dotSizeXYValue, dotSizeTValue) {
             <!-- <input type="checkbox" id="toggle-coordinates"> -->
             <!-- <text>(Toggle coordinate text color need to reclick the Calculate Button.)</text> -->
             <br>
-            <label for="toggle-gamut-boundary">Colorful Gamut Boundary (in rare case can be faint, most accurate):</label>
+            <label for="toggle-gamut-boundary">Colorful Gamut Boundary (most accurate and fast):</label>
             <input type="checkbox" id="toggle-gamut-boundary" checked>
             <text>(Reclick Calculate to apply.)</text>
-            <br>
-            <text>Unchecked takes longer time.</text>
         `;
     } else {
         dotsizeXYContainer.innerHTML = '';
