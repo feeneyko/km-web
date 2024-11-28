@@ -110,7 +110,6 @@ function displayPigments() {
     });
 }
 
-
 // Toggle selection state for a pigment and manage individual ratio input fields
 function togglePigmentSelection(element) {
     element.classList.toggle('selected');
@@ -192,6 +191,12 @@ function updateGamutContainers(fractionValue, dotSizeXYValue, dotSizeTValue) {
             <!-- <label for="toggle-coordinates">White Coordinates:</label> -->
             <!-- <input type="checkbox" id="toggle-coordinates"> -->
             <!-- <text>(Toggle coordinate text color need to reclick the Calculate Button.)</text> -->
+            <br>
+            <label for="toggle-gamut-boundary">Colorful Gamut Boundary (in rare case can be faint, most accurate):</label>
+            <input type="checkbox" id="toggle-gamut-boundary" checked>
+            <text>(Reclick Calculate to apply.)</text>
+            <br>
+            <text>Unchecked takes longer time.</text>
         `;
     } else {
         dotsizeXYContainer.innerHTML = '';
@@ -357,6 +362,15 @@ function generateRatioCombinations(n, steps) {
     return combinations;
 }
 
+// Mapping functions from x, y to canvas coordinates
+function xToCanvasX(x, xMin, xMax, drawableWidth, padding) {
+    return padding + ((x - xMin) / (xMax - xMin)) * drawableWidth;
+}
+
+function yToCanvasY(y, yMin, yMax, drawableHeight, padding) {
+    return padding + ((yMax - y) / (yMax - yMin)) * drawableHeight;
+}
+
 // Function to plot the chromaticity diagram boundary with padding
 function plotChromaticityDiagramBoundary(ctx, xMin, xMax, yMin, yMax, padding) {
     const canvasWidth = ctx.canvas.width;
@@ -365,28 +379,19 @@ function plotChromaticityDiagramBoundary(ctx, xMin, xMax, yMin, yMax, padding) {
     const drawableWidth = canvasWidth - 2 * padding;
     const drawableHeight = canvasHeight - 2 * padding;
 
-    // Mapping functions from x, y to canvas coordinates
-    function xToCanvasX(x) {
-        return padding + ((x - xMin) / (xMax - xMin)) * drawableWidth;
-    }
-
-    function yToCanvasY(y) {
-        return padding + ((yMax - y) / (yMax - yMin)) * drawableHeight;
-    }
-
     // Draw x and y axes
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 1;
 
     // Draw x-axis
-    const xAxisY = yToCanvasY(0);
+    const xAxisY = yToCanvasY(0, yMin, yMax, drawableHeight, padding);
     ctx.beginPath();
     ctx.moveTo(padding, xAxisY);
     ctx.lineTo(canvasWidth - padding, xAxisY);
     ctx.stroke();
 
     // Draw y-axis
-    const yAxisX = xToCanvasX(0);
+    const yAxisX = xToCanvasX(0, xMin, xMax, drawableWidth, padding);
     ctx.beginPath();
     ctx.moveTo(yAxisX, padding);
     ctx.lineTo(yAxisX, canvasHeight - padding);
@@ -394,7 +399,7 @@ function plotChromaticityDiagramBoundary(ctx, xMin, xMax, yMin, yMax, padding) {
 
     // Add tick marks and labels on x-axis
     for (let x = xMin; x <= xMax; x += 0.1) {
-        const canvasX = xToCanvasX(x);
+        const canvasX = xToCanvasX(x, xMin, xMax, drawableWidth, padding);
         ctx.beginPath();
         ctx.moveTo(canvasX, xAxisY - 5);
         ctx.lineTo(canvasX, xAxisY + 5);
@@ -406,7 +411,7 @@ function plotChromaticityDiagramBoundary(ctx, xMin, xMax, yMin, yMax, padding) {
 
     // Add tick marks and labels on y-axis
     for (let y = yMin; y <= yMax; y += 0.1) {
-        const canvasY = yToCanvasY(y);
+        const canvasY = yToCanvasY(y, yMin, yMax, drawableHeight, padding);
         ctx.beginPath();
         ctx.moveTo(yAxisX - 5, canvasY);
         ctx.lineTo(yAxisX + 5, canvasY);
@@ -434,8 +439,8 @@ function plotChromaticityDiagramBoundary(ctx, xMin, xMax, yMin, yMax, padding) {
     ctx.beginPath();
     for (let i = 0; i < boundaryXY.length; i++) {
         const [x, y] = boundaryXY[i];
-        const canvasX = xToCanvasX(x);
-        const canvasY = yToCanvasY(y);
+        const canvasX = xToCanvasX(x, xMin, xMax, drawableWidth, padding);
+        const canvasY = yToCanvasY(y, yMin, yMax, drawableHeight, padding);
 
         if (i === 0) {
             ctx.moveTo(canvasX, canvasY);
@@ -452,8 +457,8 @@ function plotChromaticityDiagramBoundary(ctx, xMin, xMax, yMin, yMax, padding) {
         const wl = wavelengths[i];
         if (wl % 20 === 0 && wl >= 460 && wl <= 620) {
             const [x, y] = boundaryXY[i];
-            const canvasX = xToCanvasX(x);
-            const canvasY = yToCanvasY(y);
+            const canvasX = xToCanvasX(x, xMin, xMax, drawableWidth, padding);
+            const canvasY = yToCanvasY(y, yMin, yMax, drawableHeight, padding);
 
             // Draw a mark on the curve at this point
             ctx.beginPath();
@@ -469,6 +474,7 @@ function plotChromaticityDiagramBoundary(ctx, xMin, xMax, yMin, yMax, padding) {
     }
 }
 
+// Helper function for `plotChromaticityDiagramBoundary`
 // Function to get XYZ from a specific wavelength
 function getXYZFromWavelength(wl) {
     const index = detailedCMFD65.findIndex(d => d.wavelength >= wl);
@@ -489,162 +495,25 @@ function getXYZFromWavelength(wl) {
     return [X, Y, Z];
 }
 
-// white coordinates is for the coordinate text color
-function displayInXYChromacity(ctx, offscreenCanvas, colors, xMin, xMax, yMin, yMax, dotsize, padding, whiteCoordinates) {
-    const canvasWidth = ctx.canvas.width;
-    const canvasHeight = ctx.canvas.height;
-
-    const drawableWidth = canvasWidth - 2 * padding;
-    const drawableHeight = canvasHeight - 2 * padding;
-
-    const points = [];
-
-    // Mapping functions from x, y to canvas coordinates
-    function xToCanvasX(x) {
-        return padding + ((x - xMin) / (xMax - xMin)) * drawableWidth;
-    }
-
-    function yToCanvasY(y) {
-        return padding + ((yMax - y) / (yMax - yMin)) * drawableHeight;
-    }
-
-    function drawCanvas(hoveredPoint, clickedPoint) {
-        // Clear the canvas
-        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-
-        // Draw the off-screen canvas onto the main canvas
-        ctx.drawImage(offscreenCanvas, 0, 0);
-
-        // Draw each color point on the chromaticity diagram
-        for (let i = 0; i < points.length; i++) {
-            const point = points[i];
-
-            // Draw the point
-            ctx.fillStyle = `rgb(${point.r}, ${point.g}, ${point.b})`;
-            ctx.beginPath();
-            ctx.arc(point.canvasX, point.canvasY, dotsize, 0, 2 * Math.PI);
-            ctx.fill();
-        }
-
-        [hoveredPoint, clickedPoint].forEach((point) => {
-            if (point) {
-                if (whiteCoordinates) {
-                    ctx.fillStyle = 'white';
-                } else {
-                    ctx.fillStyle = 'black';
-                }
-                ctx.font = '12px Arial';
-                ctx.fillText(
-                    `(${point.x.toFixed(2)}, ${point.y.toFixed(2)})`,
-                    point.canvasX + 5,
-                    point.canvasY - 5
-                );
-            }
-        });
-    }
-
-    // Initialize the points array
-    function init() {
-        for (let i = 0; i < colors.length; i++) {
-            const [x, y] = xyz_to_xy(colors[i]);
-            const [r, g, b] = xyz_to_rgb(colors[i]);
-
-            // Convert x, y to canvas coordinates
-            const canvasX = xToCanvasX(x);
-            const canvasY = yToCanvasY(y);
-
-            points.push({
-                canvasX: canvasX,
-                canvasY: canvasY,
-                x: x,
-                y: y,
-                r: r,
-                g: g,
-                b: b,
-            });
-        }
-
-        // Initial draw
-        drawCanvas(null, null);
-
-        // Add event listeners
-        ctx.canvas.addEventListener('mousemove', handleMouseMove);
-        ctx.canvas.addEventListener('click', handleClick);
-    }
-
-    function handleMouseMove(event) {
-        const mousePos = getMousePos(ctx.canvas, event);
-        let hoveredPoint = null;
-
-        for (let i = 0; i < points.length; i++) {
-            const point = points[i];
-            const dx = mousePos.x - point.canvasX;
-            const dy = mousePos.y - point.canvasY;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-
-            if (distance <= dotsize * 2) {  // Adjust the threshold as needed
-                hoveredPoint = point;
-                break;
-            }
-        }
-
-        // Redraw the canvas with the hovered point
-        drawCanvas(hoveredPoint, clickedPoint);
-    }
-
-    let clickedPoint = null;
-
-    function handleClick(event) {
-        const mousePos = getMousePos(ctx.canvas, event);
-        clickedPoint = null;
-
-        for (let i = 0; i < points.length; i++) {
-            const point = points[i];
-            const dx = mousePos.x - point.canvasX;
-            const dy = mousePos.y - point.canvasY;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-
-            if (distance <= dotsize * 2) {
-                clickedPoint = point;
-                break;
-            }
-        }
-
-        // Redraw the canvas with the clicked point
-        drawCanvas(null, clickedPoint);
-    }
-
-    function getMousePos(canvas, evt) {
-        const rect = canvas.getBoundingClientRect();
-        return {
-            x: (evt.clientX - rect.left) * (canvas.width / rect.width),
-            y: (evt.clientY - rect.top) * (canvas.height / rect.height),
-        };
-    }
-
-    init();
-}
-
-// Function to display the gamut of colors for three pigments using a ternary plot
 function displayGamut(bundle, selectedPigments, dotsizeT, dotsizeXY, whiteCoordinates) {
     const gamutContainer = document.getElementById('gamut-container');
     gamutContainer.innerHTML = ''; // Clear previous content
 
     if (selectedPigments.length == 2) {
         // Existing code for two pigments
-        bundle.forEach(obj => {
+        bundle.forEach((obj, index) => {
             const colorDiv = document.createElement('div');
             colorDiv.style.width = '40px';
             colorDiv.style.height = '40px';
             colorDiv.style.margin = '1px auto';
             const [r, g, b] = xyz_to_rgb(obj.xyz);
             colorDiv.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
-    
+        
             const ratioDiv = document.createElement('div');
             ratioDiv.style.fontSize = '16px';
             ratioDiv.style.textAlign = 'center';
             ratioDiv.innerHTML = obj.ratios.map(r => `<div>${r.toFixed(2)}</div>`).join('');
-    
+        
             const containerDiv = document.createElement('div');
             containerDiv.style.flex = '1 0 auto'; // Allow items to grow and shrink
             containerDiv.style.boxSizing = 'border-box';
@@ -654,9 +523,40 @@ function displayGamut(bundle, selectedPigments, dotsizeT, dotsizeXY, whiteCoordi
             containerDiv.style.alignItems = 'center';
             containerDiv.appendChild(colorDiv);
             containerDiv.appendChild(ratioDiv);
-    
+        
+            // Display first six and last six items, hide others
+            if (index >= 6 && index < bundle.length - 6) {
+                containerDiv.style.display = 'none';
+                containerDiv.classList.add('extra-item');
+            }
+        
             gamutContainer.appendChild(containerDiv);
         });
+        
+        // Add "..." and a button to toggle the visibility of extra items if there are more than 12 items
+        if (bundle.length > 12) {
+            const ellipsisDiv = document.createElement('div');
+            ellipsisDiv.innerText = '..................';
+            ellipsisDiv.style.fontSize = '16px';
+            ellipsisDiv.style.textAlign = 'center';
+            gamutContainer.insertBefore(ellipsisDiv, gamutContainer.children[6]);
+
+            const toggleButton = document.createElement('button');
+            toggleButton.style.maxHeight = '40px';
+            toggleButton.innerText = 'Expand';
+            toggleButton.style.margin = '10px auto';
+            toggleButton.style.display = 'block';
+            toggleButton.addEventListener('click', () => {
+                const extraItems = document.querySelectorAll('.extra-item');
+                const isExpanded = toggleButton.innerText === 'Collapse';
+                extraItems.forEach(item => {
+                    item.style.display = isExpanded ? 'none' : 'flex';
+                });
+                ellipsisDiv.style.display = isExpanded ? 'block' : 'none';
+                toggleButton.innerText = isExpanded ? 'Expand' : 'Collapse';
+            });
+            gamutContainer.appendChild(toggleButton);
+        }
     } else if (selectedPigments.length == 3) {
         // Create a canvas for the ternary plot
         const canvas = document.createElement('canvas');
@@ -810,6 +710,235 @@ function displayGamut(bundle, selectedPigments, dotsizeT, dotsizeXY, whiteCoordi
     gamutContainer.appendChild(xyContainer);
 }
 
+// XY Chromaticity Diagram
+// white coordinates is for the coordinate text color
+function displayInXYChromacity(ctx, offscreenCanvas, colors, xMin, xMax, yMin, yMax, dotsize, padding, whiteCoordinates) {
+    const canvasWidth = ctx.canvas.width;
+    const canvasHeight = ctx.canvas.height;
+
+    const drawableWidth = canvasWidth - 2 * padding;
+    const drawableHeight = canvasHeight - 2 * padding;
+
+    const points = [];
+
+    function drawCanvas(hoveredPoint, clickedPoint) {
+        // Clear the canvas
+        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+        // Draw the off-screen canvas onto the main canvas
+        ctx.drawImage(offscreenCanvas, 0, 0);
+
+        // Draw each color point on the chromaticity diagram
+        for (let i = 0; i < points.length; i++) {
+            const point = points[i];
+
+            // Draw the point
+            ctx.fillStyle = `rgb(${point.r}, ${point.g}, ${point.b})`;
+            ctx.beginPath();
+            ctx.arc(point.canvasX, point.canvasY, dotsize, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        [hoveredPoint, clickedPoint].forEach((point) => {
+            if (point) {
+                if (whiteCoordinates) {
+                    ctx.fillStyle = 'white';
+                } else {
+                    ctx.fillStyle = 'black';
+                }
+                ctx.font = '12px Arial';
+                ctx.fillText(
+                    `(${point.x.toFixed(2)}, ${point.y.toFixed(2)})`,
+                    point.canvasX + 5,
+                    point.canvasY - 5
+                );
+            }
+        });
+    }
+
+    // Initialize the points array
+    function init() {
+        for (let i = 0; i < colors.length; i++) {
+            const [x, y] = xyz_to_xy(colors[i]);
+            const [r, g, b] = xyz_to_rgb(colors[i]);
+
+            // Convert x, y to canvas coordinates
+            const canvasX = xToCanvasX(x, xMin, xMax, drawableWidth, padding);
+            const canvasY = yToCanvasY(y, yMin, yMax, drawableHeight, padding);
+
+            points.push({
+                canvasX: canvasX,
+                canvasY: canvasY,
+                x: x,
+                y: y,
+                r: r,
+                g: g,
+                b: b,
+            });
+        }
+
+        // Initial draw
+        drawCanvas(null, null);
+
+        // Add event listeners
+        ctx.canvas.addEventListener('mousemove', handleMouseMove);
+        ctx.canvas.addEventListener('click', handleClick);
+    }
+
+    function handleMouseMove(event) {
+        const mousePos = getMousePos(ctx.canvas, event);
+        let hoveredPoint = null;
+
+        for (let i = 0; i < points.length; i++) {
+            const point = points[i];
+            const dx = mousePos.x - point.canvasX;
+            const dy = mousePos.y - point.canvasY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance <= dotsize * 2) {  // Adjust the threshold as needed
+                hoveredPoint = point;
+                break;
+            }
+        }
+
+        // Redraw the canvas with the hovered point
+        drawCanvas(hoveredPoint, clickedPoint);
+    }
+
+    let clickedPoint = null;
+
+    function handleClick(event) {
+        const mousePos = getMousePos(ctx.canvas, event);
+        clickedPoint = null;
+
+        for (let i = 0; i < points.length; i++) {
+            const point = points[i];
+            const dx = mousePos.x - point.canvasX;
+            const dy = mousePos.y - point.canvasY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance <= dotsize * 2) {
+                clickedPoint = point;
+                break;
+            }
+        }
+
+        // Redraw the canvas with the clicked point
+        drawCanvas(null, clickedPoint);
+    }
+
+    function getMousePos(canvas, evt) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: (evt.clientX - rect.left) * (canvas.width / rect.width),
+            y: (evt.clientY - rect.top) * (canvas.height / rect.height),
+        };
+    }
+
+    init();
+}
+
+function generateGamutBoundary(offscreenCtx, xMin, xMax, yMin, yMax, dotsize, padding) {
+    const selectedElements = document.querySelectorAll('.pigment-box.selected');
+    const selectedPigments = Array.from(selectedElements).map(el => el.dataset.pigment);
+
+    const colorfulToggle = document.getElementById('toggle-gamut-boundary').checked;
+
+    const ratioCombinations = generateRatioCombinations(2, 1600);
+    const bundle = [];
+
+    for (let i = 0; i < selectedPigments.length; i++) {
+        for (let j = i + 1; j < selectedPigments.length; j++) {
+            const pigmentPair = [selectedPigments[i], selectedPigments[j]];
+            ratioCombinations.forEach(ratios => {
+                bundle.push({
+                    xyz: calculateColor(pigmentPair, ratios),
+                    ratios: ratios,
+                    pigments: pigmentPair
+                });
+            });
+        }
+    }
+
+    const canvasWidth = offscreenCtx.canvas.width;
+    const canvasHeight = offscreenCtx.canvas.height;
+
+    const drawableWidth = canvasWidth - 2 * padding;
+    const drawableHeight = canvasHeight - 2 * padding;
+
+    const points = [];
+
+    const colors = bundle.map(obj => obj.xyz);
+
+    function drawCanvas() {
+        if (colorfulToggle) {
+            // Draw each color point on the chromaticity diagram
+            for (let i = 0; i < points.length; i++) {
+                const point = points[i];
+
+                // Draw the point
+                offscreenCtx.fillStyle = `rgb(${point.r}, ${point.g}, ${point.b})`;
+                offscreenCtx.beginPath();
+                offscreenCtx.arc(point.canvasX, point.canvasY, dotsize, 0, 2 * Math.PI);
+                offscreenCtx.fill();
+            }
+        } else {
+            // connecting only the nearest point within the threshold
+            const maxDistance = 10;
+            offscreenCtx.beginPath();
+            for (let i = 0; i < points.length; i++) {
+                const pointA = points[i];
+                let nearestPoint = null;
+                let nearestDistance = Infinity;
+                for (let j = 0; j < points.length; j++) {
+                    if (i === j) continue;
+                    const pointB = points[j];
+                    const dx = pointA.canvasX - pointB.canvasX;
+                    const dy = pointA.canvasY - pointB.canvasY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < maxDistance && distance < nearestDistance) {
+                        nearestPoint = pointB;
+                        nearestDistance = distance;
+                    }
+                }
+                if (nearestPoint) {
+                    offscreenCtx.moveTo(pointA.canvasX, pointA.canvasY);
+                    offscreenCtx.lineTo(nearestPoint.canvasX, nearestPoint.canvasY);
+                }
+            }
+            offscreenCtx.strokeStyle = 'black';
+            offscreenCtx.lineWidth = 1;
+            offscreenCtx.stroke();
+        }
+    }
+
+    // Initialize the points array
+    function init() {
+        for (let i = 0; i < colors.length; i++) {
+            const [x, y] = xyz_to_xy(colors[i]);
+            const [r, g, b] = xyz_to_rgb(colors[i]);
+
+            // Convert x, y to canvas coordinates
+            const canvasX = xToCanvasX(x, xMin, xMax, drawableWidth, padding);
+            const canvasY = yToCanvasY(y, yMin, yMax, drawableHeight, padding);
+
+            points.push({
+                canvasX: canvasX,
+                canvasY: canvasY,
+                x: x,
+                y: y,
+                r: r,
+                g: g,
+                b: b,
+            });
+        }
+        // Initial draw
+        drawCanvas();
+    }
+    init();
+}
+
+// XY Chromaticity Diagram
 function generateGamutXYChromacity(xyzlist, dotsize, whiteCoordinates) {
     const canvas = document.createElement('canvas');
     const canvasWidth = 500;
@@ -842,14 +971,15 @@ function generateGamutXYChromacity(xyzlist, dotsize, whiteCoordinates) {
 
     plotChromaticityDiagramBoundary(offscreenCtx, xMin, xMax, yMin, yMax, padding);
 
+    generateGamutBoundary(offscreenCtx, xMin, xMax, yMin, yMax, 0.1, padding);
+
     // **Now call the modified display function with off-screen canvas**
     displayInXYChromacity(ctx, offscreenCanvas, xyzlist, xMin, xMax, yMin, yMax, dotsize, padding, whiteCoordinates);
 
     return canvas;
 }
 
-
-// helper function for three pigments
+// helper function for Ternary Plot
 function ternaryToCartesian(ratios, canvasWidth, canvasHeight, padding = 34) {
     const [a, b, c] = ratios;
     const sum = a + b + c || 1; // Prevent division by zero
@@ -865,9 +995,6 @@ function ternaryToCartesian(ratios, canvasWidth, canvasHeight, padding = 34) {
 
     return [scaledX, scaledY];
 }
-
-// helper function for three pigments
-// Function to draw the ternary plot background and labels
 function drawTernaryBackground(ctx, canvasWidth, canvasHeight, pigmentNames) {
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 1;
@@ -909,7 +1036,7 @@ function displayMixedColorKM(rgb) {
     colorInfoKM.innerHTML = `Mixed sRGB values:<br>${rgb[0]}, ${rgb[1]}, ${rgb[2]}`;
 }
 
-// Convert XYZ values to sRGB
+// Converters
 function xyz_to_rgb(XYZ) {
     const [X, Y, Z] = XYZ;
     const M = [
@@ -923,7 +1050,6 @@ function xyz_to_rgb(XYZ) {
 
     return [r, g, b].map(gammaCorrect).map(c => Math.round(c * 255));
 }
-
 function xyz_to_xy(XYZ) {
     const [X, Y, Z] = XYZ;
     const sum = X + Y + Z;
