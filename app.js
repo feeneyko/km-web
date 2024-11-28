@@ -160,7 +160,7 @@ function updateGamutContainers(fractionValue, dotSizeXYValue, dotSizeTValue) {
 
     if (fractionValue !== null) {
         fractionContainer.innerHTML = `
-            <label for="fraction-input">Fraction/Step:</label>
+            <label for="fraction-input">Fraction/Density:</label>
             <input type="number" id="fraction-input" value="${fractionValue}">
         `;
     } else {
@@ -181,20 +181,16 @@ function updateGamutContainers(fractionValue, dotSizeXYValue, dotSizeTValue) {
     if (dotSizeXYValue !== null) {
         // the toggle-coordinates for change coordinate color  
         dotsizeXYContainer.innerHTML = `
+        <div>
             <label for="dotsize-xychromaticity-input">Dot Size for XY Chromaticity Diagram:</label>
             <input type="number" id="dotsize-xychromaticity-input" value="${dotSizeXYValue}">
             <br>
-            <text>-</text>
-            <br>
-            <text>Hover/Click the points on XY Chromaticity Diagram to show coordinates.</text>
-            <!-- <br> -->
-            <!-- <label for="toggle-coordinates">White Coordinates:</label> -->
-            <!-- <input type="checkbox" id="toggle-coordinates"> -->
-            <!-- <text>(Toggle coordinate text color need to reclick the Calculate Button.)</text> -->
-            <br>
-            <label for="toggle-gamut-boundary">Colorful Gamut Boundary (most accurate and fast):</label>
-            <input type="checkbox" id="toggle-gamut-boundary" checked>
+            <label for="toggle-gamut-boundary">Colorful Gamut Boundary:</label>
+            <input type="checkbox" id="toggle-gamut-boundary">
             <text>(Reclick Calculate to apply.)</text>
+            <br>
+            <text style="display: block; margin-top: 3px;">Hover/Click the points on XY Chromaticity Diagram to show coordinates.</text>
+        </div>
         `;
     } else {
         dotsizeXYContainer.innerHTML = '';
@@ -701,7 +697,7 @@ function displayGamut(bundle, selectedPigments, dotsizeT, dotsizeXY, whiteCoordi
     xyContainer.appendChild(xyCanvas);
     // Add a label for the XY chromaticity diagram
     const xyLabel = document.createElement('div');
-    xyLabel.textContent = 'CIE 1931 XY Chromaticity Diagram';
+    xyLabel.textContent = 'CIE 1931 XY Chromaticity Diagram (X, Y)';
     xyLabel.style.marginTop = '10px';
     xyContainer.appendChild(xyLabel);
     // Append the xy container to the gamut container
@@ -848,12 +844,16 @@ function generateGamutBoundary(offscreenCtx, xMin, xMax, yMin, yMax, dotsize, pa
     for (let i = 0; i < selectedPigments.length; i++) {
         for (let j = i + 1; j < selectedPigments.length; j++) {
             const pigmentPair = [selectedPigments[i], selectedPigments[j]];
+            const pairBundle = [];
             ratioCombinations.forEach(ratios => {
-                bundle.push({
+                pairBundle.push({
                     xyz: calculateColor(pigmentPair, ratios),
-                    ratios: ratios,
-                    pigments: pigmentPair
+                    ratios: ratios
                 });
+            });
+            bundle.push({
+                pairBundle: pairBundle,
+                pigments: pigmentPair
             });
         }
     }
@@ -864,11 +864,45 @@ function generateGamutBoundary(offscreenCtx, xMin, xMax, yMin, yMax, dotsize, pa
     const drawableWidth = canvasWidth - 2 * padding;
     const drawableHeight = canvasHeight - 2 * padding;
 
-    const points = [];
+    let points = [];
+    const pointsByPair = [];
 
-    const colors = bundle.map(obj => obj.xyz);
+    // Initialize the points array
+    function init() {
+        for (let b = 0; b < bundle.length; b++) {
+            const pairBundle = bundle[b].pairBundle;
+            const pigments = bundle[b].pigments;
+            const pairPoints = [];
+            for (let i = 0; i < pairBundle.length; i++) {
+                const colorXYZ = pairBundle[i].xyz;
+                const [x, y] = xyz_to_xy(colorXYZ);
+                const [r, g, b] = xyz_to_rgb(colorXYZ);
 
-    function drawCanvas() {
+                // Convert x, y to canvas coordinates
+                const canvasX = xToCanvasX(x, xMin, xMax, drawableWidth, padding);
+                const canvasY = yToCanvasY(y, yMin, yMax, drawableHeight, padding);
+
+                pairPoints.push({
+                    canvasX: canvasX,
+                    canvasY: canvasY,
+                    x: x,
+                    y: y,
+                    r: r,
+                    g: g,
+                    b: b,
+                    pigments: pigments,
+                    ratio: pairBundle[i].ratios[0] // Ratio of the first pigment
+                });
+            }
+            pointsByPair.push(pairPoints);
+        }
+        // Flatten pointsByPair to a single array for drawing points
+        points = [].concat(...pointsByPair);
+        // Initial draw
+        drawCanvas(pointsByPair);
+    }
+
+    function drawCanvas(pointsByPair) {
         if (colorfulToggle) {
             // Draw each color point on the chromaticity diagram
             for (let i = 0; i < points.length; i++) {
@@ -881,60 +915,26 @@ function generateGamutBoundary(offscreenCtx, xMin, xMax, yMin, yMax, dotsize, pa
                 offscreenCtx.fill();
             }
         } else {
-            // connecting only the nearest point within the threshold
-            const maxDistance = 10;
-            offscreenCtx.beginPath();
-            for (let i = 0; i < points.length; i++) {
-                const pointA = points[i];
-                let nearestPoint = null;
-                let nearestDistance = Infinity;
-                for (let j = 0; j < points.length; j++) {
-                    if (i === j) continue;
-                    const pointB = points[j];
-                    const dx = pointA.canvasX - pointB.canvasX;
-                    const dy = pointA.canvasY - pointB.canvasY;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    if (distance < maxDistance && distance < nearestDistance) {
-                        nearestPoint = pointB;
-                        nearestDistance = distance;
-                    }
-                }
-                if (nearestPoint) {
-                    offscreenCtx.moveTo(pointA.canvasX, pointA.canvasY);
-                    offscreenCtx.lineTo(nearestPoint.canvasX, nearestPoint.canvasY);
-                }
-            }
+            // Connect points generated by the same pigmentPair
             offscreenCtx.strokeStyle = 'black';
             offscreenCtx.lineWidth = 1;
-            offscreenCtx.stroke();
+            for (let i = 0; i < pointsByPair.length; i++) {
+                const pairPoints = pointsByPair[i];
+                // Sort
+                // pairPoints.sort((a, b) => a.ratio - b.ratio);
+                offscreenCtx.beginPath();
+                offscreenCtx.moveTo(pairPoints[0].canvasX, pairPoints[0].canvasY);
+                for (let j = 1; j < pairPoints.length; j++) {
+                    offscreenCtx.lineTo(pairPoints[j].canvasX, pairPoints[j].canvasY);
+                }
+                offscreenCtx.stroke();
+            }
         }
     }
 
-    // Initialize the points array
-    function init() {
-        for (let i = 0; i < colors.length; i++) {
-            const [x, y] = xyz_to_xy(colors[i]);
-            const [r, g, b] = xyz_to_rgb(colors[i]);
-
-            // Convert x, y to canvas coordinates
-            const canvasX = xToCanvasX(x, xMin, xMax, drawableWidth, padding);
-            const canvasY = yToCanvasY(y, yMin, yMax, drawableHeight, padding);
-
-            points.push({
-                canvasX: canvasX,
-                canvasY: canvasY,
-                x: x,
-                y: y,
-                r: r,
-                g: g,
-                b: b,
-            });
-        }
-        // Initial draw
-        drawCanvas();
-    }
     init();
 }
+
 
 // XY Chromaticity Diagram
 function generateGamutXYChromacity(xyzlist, dotsize, whiteCoordinates) {

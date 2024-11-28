@@ -123,16 +123,18 @@
             It operates under CIE D65, D50, and A illuminant. The pigment data wavelength interval is 10 nm.
         </p>
         <p>
-            <strong>Warning:</strong> Any non-textual color representation on the webpage is inaccurate. This is due to the nature of displaying colors in sRGB or HEX formats on a webpage, which are approximations of the intended color.
-        </p>
-        <p>
-            For example, the pigment labeled as cobalt blue is displayed as rgb(63, 68, 245), even though the intended value is rgb(44, 65, 247), as the text shows.
-        </p>
-        <p>
+            <strong>Warning:</strong> Any non-textual color representation on the webpage is inaccurate. This is due to the nature of displaying colors in sRGB or HEX formats on a webpage, which are approximations of the intended color. 
+
+            For example, the pigment labeled as cobalt blue is displayed as rgb(63, 68, 245), even though the intended value is rgb(44, 65, 247), as the text shows. 
+
             If you use the color picker to sample colors directly from the webpage, it will capture the already inaccurately rendered color correctly. In other words, it generates the correct textual representation of the wrong graphic representation on the website (rgb(63, 68, 245) for cobalt blue). Then representing this correct textual representation in graphic format in the color picker display square introduces further distortion due to another round of sRGB-to-web display conversion.
         </p>
         <p>
             The coordinates of the xy chromaticity diagram are designed to correctly represent the XYZ tristimulus values calculated from Kubelka-Munk result (i.e., reflectance). Whenever any clipping occurs during these calculation, a console log will warn and show the value before clipping. Other clippings (e.g., during XYZ to RGB) will not be not shown.
+        </p>
+
+        <p>
+            <strong>Gamnut:</strong> The gamut displayed in the xy chromaticity diagram may appear irregular. To make it more obvious, reduce the Fraction/Density. The gamut is the largest enclosed area formed by the lines, disregarding any line intersections.
         </p>
     </div>
 
