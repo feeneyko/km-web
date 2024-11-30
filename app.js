@@ -692,8 +692,10 @@ function displayGamut(bundle, selectedPigments, dotsizeT, dotsizeXY, whiteCoordi
     xyContainer.style.display = 'inline-block'; // or 'block' if you prefer
     xyContainer.style.textAlign = 'center';
     xyContainer.style.margin = '10px';
+
     // Display the XY chromaticity diagram and append it to the xyContainer
-    const xyCanvas = generateGamutXYChromacity(bundle.map(obj => obj.xyz), dotsizeXY, whiteCoordinates);
+    const xyCanvas = generateGamutXYChromacity(bundle, dotsizeXY, whiteCoordinates);
+
     xyContainer.appendChild(xyCanvas);
     // Add a label for the XY chromaticity diagram
     const xyLabel = document.createElement('div');
@@ -706,7 +708,11 @@ function displayGamut(bundle, selectedPigments, dotsizeT, dotsizeXY, whiteCoordi
 
 // XY Chromaticity Diagram
 // white coordinates is for the coordinate text color
-function displayInXYChromacity(ctx, offscreenCanvas, colors, xMin, xMax, yMin, yMax, dotsize, padding, whiteCoordinates) {
+function displayInXYChromacity(ctx, offscreenCanvas, bundle, xMin, xMax, yMin, yMax, dotsize, padding, whiteCoordinates) {
+
+    const xyzlist = bundle.map(obj => obj.xyz);
+    const ratiolist = bundle.map(obj => obj.ratios);
+
     const canvasWidth = ctx.canvas.width;
     const canvasHeight = ctx.canvas.height;
 
@@ -720,7 +726,7 @@ function displayInXYChromacity(ctx, offscreenCanvas, colors, xMin, xMax, yMin, y
         ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
         // Draw the off-screen canvas onto the main canvas
-        ctx.drawImage(offscreenCanvas, 0, 0);
+        // ctx.drawImage(offscreenCanvas, 0, 0);
 
         // Draw each color point on the chromaticity diagram
         for (let i = 0; i < points.length; i++) {
@@ -744,17 +750,26 @@ function displayInXYChromacity(ctx, offscreenCanvas, colors, xMin, xMax, yMin, y
                 ctx.fillText(
                     `(${point.x.toFixed(2)}, ${point.y.toFixed(2)})`,
                     point.canvasX + 5,
-                    point.canvasY - 5
+                    point.canvasY - 20
                 );
+                if (point.ratios.length <= 4) {
+                    ctx.fillText(
+                        `Ratios: ${point.ratios.map(r => r.toFixed(2)).join(', ')}`,
+                        point.canvasX + 5,
+                        point.canvasY - 5
+                    );
+                }
             }
         });
+        // Draw the off-screen canvas onto the main canvas after the points
+        ctx.drawImage(offscreenCanvas, 0, 0);
     }
 
     // Initialize the points array
     function init() {
-        for (let i = 0; i < colors.length; i++) {
-            const [x, y] = xyz_to_xy(colors[i]);
-            const [r, g, b] = xyz_to_rgb(colors[i]);
+        for (let i = 0; i < xyzlist.length; i++) {
+            const [x, y] = xyz_to_xy(xyzlist[i]);
+            const [r, g, b] = xyz_to_rgb(xyzlist[i]);
 
             // Convert x, y to canvas coordinates
             const canvasX = xToCanvasX(x, xMin, xMax, drawableWidth, padding);
@@ -768,6 +783,7 @@ function displayInXYChromacity(ctx, offscreenCanvas, colors, xMin, xMax, yMin, y
                 r: r,
                 g: g,
                 b: b,
+                ratios: ratiolist[i]
             });
         }
 
@@ -789,7 +805,7 @@ function displayInXYChromacity(ctx, offscreenCanvas, colors, xMin, xMax, yMin, y
             const dy = mousePos.y - point.canvasY;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
-            if (distance <= dotsize * 2) {  // Adjust the threshold as needed
+            if (distance <= dotsize * 1) {  // Adjust the threshold as needed
                 hoveredPoint = point;
                 break;
             }
@@ -811,7 +827,7 @@ function displayInXYChromacity(ctx, offscreenCanvas, colors, xMin, xMax, yMin, y
             const dy = mousePos.y - point.canvasY;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
-            if (distance <= dotsize * 2) {
+            if (distance <= dotsize * 1) {
                 clickedPoint = point;
                 break;
             }
@@ -937,7 +953,7 @@ function generateGamutBoundary(offscreenCtx, xMin, xMax, yMin, yMax, dotsize, pa
 
 
 // XY Chromaticity Diagram
-function generateGamutXYChromacity(xyzlist, dotsize, whiteCoordinates) {
+function generateGamutXYChromacity(bundle, dotsize, whiteCoordinates) {
     const canvas = document.createElement('canvas');
     const canvasWidth = 500;
     const canvasHeight = 500;
@@ -956,23 +972,22 @@ function generateGamutXYChromacity(xyzlist, dotsize, whiteCoordinates) {
     const yMax = 0.9;
     const padding = 34;
 
-    // **Create an off-screen canvas**
-    const offscreenCanvas = document.createElement('canvas');
-    offscreenCanvas.width = canvasWidth;
-    offscreenCanvas.height = canvasHeight;
-    const offscreenCtx = offscreenCanvas.getContext('2d');
+    // **Create off-screen canvas**
+    const offscreenCanvasDia = document.createElement('canvas');
+    offscreenCanvasDia.width = canvasWidth;
+    offscreenCanvasDia.height = canvasHeight;
+    const offscreenCtx = offscreenCanvasDia.getContext('2d');
 
     // **Draw static elements onto the off-screen canvas**
     // Set background color
-    offscreenCtx.fillStyle = 'white';
-    offscreenCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+    // offscreenCtx.fillStyle = 'white';
+    // offscreenCtx.fillRect(0, 0, canvasWidth, canvasHeight);
 
     plotChromaticityDiagramBoundary(offscreenCtx, xMin, xMax, yMin, yMax, padding);
 
     generateGamutBoundary(offscreenCtx, xMin, xMax, yMin, yMax, 0.1, padding);
 
-    // **Now call the modified display function with off-screen canvas**
-    displayInXYChromacity(ctx, offscreenCanvas, xyzlist, xMin, xMax, yMin, yMax, dotsize, padding, whiteCoordinates);
+    displayInXYChromacity(ctx, offscreenCanvasDia, bundle, xMin, xMax, yMin, yMax, dotsize, padding, whiteCoordinates);
 
     return canvas;
 }
