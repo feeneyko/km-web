@@ -186,8 +186,14 @@ function updateGamutContainers(fractionValue, dotSizeXYValue, dotSizeTValue) {
             <input type="number" id="dotsize-xychromaticity-input" value="${dotSizeXYValue}">
             <br>
             <label for="toggle-gamut-boundary">Colorful Gamut Boundary:</label>
-            <input type="checkbox" id="toggle-gamut-boundary">
+            <select id="toggle-gamut-boundary">
+                <option value="no">No</option>
+                <option value="black">Black</option>
+                <option value="colorful">Colorful</option>
+            </select>
             <text>(Reclick Calculate to apply.)</text>
+            <br>
+            <text> Please check the note for working conditions; Also consider increse the fraction/step. </text>
             <br>
             <text style="display: block; margin-top: 3px;">Hover/Click the points on XY Chromaticity Diagram to show coordinates.</text>
         </div>
@@ -848,11 +854,9 @@ function displayInXYChromacity(ctx, offscreenCanvas, bundle, xMin, xMax, yMin, y
     init();
 }
 
-function generateGamutBoundary(offscreenCtx, xMin, xMax, yMin, yMax, dotsize, padding) {
+function generateGamutBoundary(offscreenCtx, xMin, xMax, yMin, yMax, dotsize, padding, colorfulToggle) {
     const selectedElements = document.querySelectorAll('.pigment-box.selected');
     const selectedPigments = Array.from(selectedElements).map(el => el.dataset.pigment);
-
-    const colorfulToggle = document.getElementById('toggle-gamut-boundary').checked;
 
     const ratioCombinations = generateRatioCombinations(2, 1600);
     const bundle = [];
@@ -983,10 +987,14 @@ function generateGamutXYChromacity(bundle, dotsize, whiteCoordinates) {
     // offscreenCtx.fillStyle = 'white';
     // offscreenCtx.fillRect(0, 0, canvasWidth, canvasHeight);
 
+    const gamutBoundarySetting = document.getElementById('toggle-gamut-boundary').value;
     plotChromaticityDiagramBoundary(offscreenCtx, xMin, xMax, yMin, yMax, padding);
-
-    generateGamutBoundary(offscreenCtx, xMin, xMax, yMin, yMax, 0.1, padding);
-
+    if (gamutBoundarySetting === 'no') {
+    } else if (gamutBoundarySetting === 'black') {
+        generateGamutBoundary(offscreenCtx, xMin, xMax, yMin, yMax, 0.1, padding, false);
+    } else if (gamutBoundarySetting === 'colorful') {
+        generateGamutBoundary(offscreenCtx, xMin, xMax, yMin, yMax, 0.1, padding, true);
+    }
     displayInXYChromacity(ctx, offscreenCanvasDia, bundle, xMin, xMax, yMin, yMax, dotsize, padding, whiteCoordinates);
 
     return canvas;
