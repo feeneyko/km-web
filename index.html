@@ -123,25 +123,18 @@
             It operates under CIE D65, D50, and A illuminant. The pigment data wavelength interval is 10 nm.
         </p>
         <p>
-            <strong>Warning:</strong> Any non-textual color representation on the webpage is inaccurate. This is due to the nature of displaying colors in sRGB or HEX formats on a webpage, which are approximations of the intended color. 
+            <strong>Warning:</strong> Any non-textual color representation on the webpage is inaccurate. This is due to the nature of displaying colors on a webpage, which are approximations of the intended color. 
 
-            For example, the pigment labeled as cobalt blue is displayed as rgb(63, 68, 245), even though the intended value is rgb(44, 65, 247), as the text shows. 
-
-            If you use the color picker to sample colors directly from the webpage, it will capture the already inaccurately rendered color correctly. In other words, it generates the correct textual representation of the wrong graphic representation on the website (rgb(63, 68, 245) for cobalt blue). Then representing this correct textual representation in graphic format in the color picker display square introduces further distortion due to another round of sRGB-to-web display conversion.
+            For example, the pigment labeled as Cobalt Blue is displayed as rgb(63, 68, 245), as the color picker would show, even though the intended value is rgb(44, 65, 247), as the text shows. 
         </p>
         <p>
-            The coordinates of the xy chromaticity diagram are designed to correctly represent the XYZ tristimulus values calculated from Kubelka-Munk result (i.e., reflectance). Whenever any clipping occurs during these calculation, a console log will warn and show the value before clipping. Other clippings (e.g., during XYZ to RGB) will not be not shown.
-        </p>
-
-        <p>
-            <strong>Gamnut:</strong> The gamut displayed in the xy chromaticity diagram may appear irregular. The current gamut boundary only works under limited conditions.
+            <strong>Gamut:</strong> The Gamut Boundary displayed in the xy chromaticity diagram may appear irregular, reflecting the inherent nature of real-life color mixing (as simulated by Kubelka-Munk Model here). The current implementation of the gamut boundary is functional under limited conditions. For more details, please refer to the documentation.
         </p>
     </div>
 
     <!-- Color Mixing -->
     <script src="app.js"></script>
     <!-- Color Picker -->
-    <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr"></script>
     <script src="color-picker.js"></script>
 </body>
 </html>

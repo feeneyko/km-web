@@ -41,7 +41,7 @@ async function changeIlluminant() {
     displayPigments();
 }
 
-// Display each pigment as a selectable color swatch
+// Display each pigment as a selectable color tile
 function displayPigments() {
     const container = document.getElementById('pigment-container');
     container.innerHTML = ''; // Clear previous content
@@ -185,7 +185,7 @@ function updateGamutContainers(fractionValue, dotSizeXYValue, dotSizeTValue) {
             <label for="dotsize-xychromaticity-input">Dot Size for XY Chromaticity Diagram:</label>
             <input type="number" id="dotsize-xychromaticity-input" value="${dotSizeXYValue}">
             <br>
-            <label for="toggle-gamut-boundary">Colorful Gamut Boundary:</label>
+            <label for="toggle-gamut-boundary">Gamut Boundary:</label>
             <select id="toggle-gamut-boundary">
                 <option value="no">No</option>
                 <option value="black">Black</option>
@@ -293,7 +293,7 @@ function mixColors() {
     const ratios = Array.from(ratioFields).map(input => Number(input.value));
 
     // RGB Light Mixing
-    // should be no different from the XYZ mixing mathematically
+    // should be no different from the XYZ mixing here mathematically
     let mixedXYZ = [0, 0, 0];
     let totalRatio = ratios.reduce((sum, r) => sum + r, 0);
     selectedPigments.forEach((pigment, index) => {
@@ -305,6 +305,7 @@ function mixColors() {
     mixedRGB = xyz_to_rgb(mixedXYZ);
     displayMixedColor(mixedRGB);
 
+    // KM Mixing
     displayMixedColorKM(xyz_to_rgb(calculateColor(selectedPigments, ratios)));
 }
 
@@ -371,7 +372,7 @@ function yToCanvasY(y, yMin, yMax, drawableHeight, padding) {
     return padding + ((yMax - y) / (yMax - yMin)) * drawableHeight;
 }
 
-// Function to plot the chromaticity diagram boundary with padding
+// Function to plot the chromaticity diagram boundary
 function plotChromaticityDiagramBoundary(ctx, xMin, xMax, yMin, yMax, padding) {
     const canvasWidth = ctx.canvas.width;
     const canvasHeight = ctx.canvas.height;
@@ -452,7 +453,7 @@ function plotChromaticityDiagramBoundary(ctx, xMin, xMax, yMin, yMax, padding) {
     ctx.strokeStyle = 'black';
     ctx.stroke();
 
-    // Now, add the wavelength labels and marks
+    // Add the wavelength labels and marks
     for (let i = 0; i < boundaryXY.length; i++) {
         const wl = wavelengths[i];
         if (wl % 20 === 0 && wl >= 460 && wl <= 620) {
@@ -500,7 +501,7 @@ function displayGamut(bundle, selectedPigments, dotsizeT, dotsizeXY, whiteCoordi
     gamutContainer.innerHTML = ''; // Clear previous content
 
     if (selectedPigments.length == 2) {
-        // Existing code for two pigments
+        // Gradient tiles
         bundle.forEach((obj, index) => {
             const colorDiv = document.createElement('div');
             colorDiv.style.width = '40px';
@@ -558,7 +559,7 @@ function displayGamut(bundle, selectedPigments, dotsizeT, dotsizeXY, whiteCoordi
             gamutContainer.appendChild(toggleButton);
         }
     } else if (selectedPigments.length == 3) {
-        // Create a canvas for the ternary plot
+        // the ternary plot
         const canvas = document.createElement('canvas');
         const canvasWidth = 500;
         const canvasHeight = Math.floor(canvasWidth * Math.sqrt(3) / 2);
@@ -566,7 +567,7 @@ function displayGamut(bundle, selectedPigments, dotsizeT, dotsizeXY, whiteCoordi
         canvas.height = canvasHeight;
         const ctx = canvas.getContext('2d');
 
-        // Draw the ternary plot background (triangle)
+        // Draw the ternary plot background
         drawTernaryBackground(ctx, canvasWidth, canvasHeight, selectedPigments);
 
         const points = [];
@@ -589,15 +590,9 @@ function displayGamut(bundle, selectedPigments, dotsizeT, dotsizeXY, whiteCoordi
             });
         });
 
-        // Function to draw the canvas
         function drawCanvas(hoveredPoint, clickedPoint) {
-            // Clear the canvas
             ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-
-            // Draw the ternary plot background (triangle)
             drawTernaryBackground(ctx, canvasWidth, canvasHeight, selectedPigments);
-
-            // Draw each color point
             points.forEach(point => {
                 ctx.fillStyle = `rgb(${point.r}, ${point.g}, ${point.b})`;
                 ctx.beginPath();
@@ -695,7 +690,7 @@ function displayGamut(bundle, selectedPigments, dotsizeT, dotsizeXY, whiteCoordi
 
     // Display the XY chromaticity diagram
     const xyContainer = document.createElement('div');
-    xyContainer.style.display = 'inline-block'; // or 'block' if you prefer
+    xyContainer.style.display = 'inline-block';
     xyContainer.style.textAlign = 'center';
     xyContainer.style.margin = '10px';
 
@@ -976,16 +971,11 @@ function generateGamutXYChromacity(bundle, dotsize, whiteCoordinates) {
     const yMax = 0.9;
     const padding = 34;
 
-    // **Create off-screen canvas**
+    // Create off-screen canvas
     const offscreenCanvasDia = document.createElement('canvas');
     offscreenCanvasDia.width = canvasWidth;
     offscreenCanvasDia.height = canvasHeight;
     const offscreenCtx = offscreenCanvasDia.getContext('2d');
-
-    // **Draw static elements onto the off-screen canvas**
-    // Set background color
-    // offscreenCtx.fillStyle = 'white';
-    // offscreenCtx.fillRect(0, 0, canvasWidth, canvasHeight);
 
     const gamutBoundarySetting = document.getElementById('toggle-gamut-boundary').value;
     plotChromaticityDiagramBoundary(offscreenCtx, xMin, xMax, yMin, yMax, padding);
